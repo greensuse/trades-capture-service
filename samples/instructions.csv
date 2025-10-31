@@ -1,0 +1,3 @@
+account_number,security_id,trade_type,quantity,price,trade_date
+123456789,goog,buy,100,145.50,2025-10-01
+00009999,msft,sell,50,300.25,2025-10-02

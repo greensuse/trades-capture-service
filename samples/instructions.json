@@ -1,0 +1,18 @@
+[
+  {
+    "accountNumber": "123456789",
+    "securityId": "aapl",
+    "tradeType": "Buy",
+    "quantity": "10",
+    "price": "180.22",
+    "tradeDate": "2025-10-01"
+  },
+  {
+    "accountNumber": "00001234",
+    "securityId": "TSLA",
+    "tradeType": "S",
+    "quantity": "5",
+    "price": "250.00",
+    "tradeDate": "2025-10-02"
+  }
+]

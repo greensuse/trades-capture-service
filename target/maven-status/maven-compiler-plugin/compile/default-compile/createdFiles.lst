@@ -1,0 +1,17 @@
+com\example\trades\kafka\InboundListener.class
+com\example\trades\store\InMemoryStore.class
+com\example\trades\config\SecurityConfig.class
+com\example\trades\model\CanonicalInstruction$CanonicalInstructionBuilder.class
+com\example\trades\web\UploadController$1.class
+com\example\trades\model\PlatformInstruction$PlatformInstructionBuilder.class
+com\example\trades\config\KafkaConfig.class
+com\example\trades\model\InstructionRaw$InstructionRawBuilder.class
+com\example\trades\service\InstructionTransformer.class
+com\example\trades\TradesCaptureServiceApplication.class
+com\example\trades\web\UploadController.class
+com\example\trades\model\CanonicalInstruction.class
+com\example\trades\model\PlatformInstruction.class
+com\example\trades\util\Masking.class
+com\example\trades\util\TradeType.class
+com\example\trades\kafka\OutboundPublisher.class
+com\example\trades\model\InstructionRaw.class

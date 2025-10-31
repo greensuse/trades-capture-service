@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: trades-capture-service
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: trades-capture-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+app:
+  kafka:
+    topics:
+      inbound: instructions.inbound
+      outbound: instructions.outbound
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

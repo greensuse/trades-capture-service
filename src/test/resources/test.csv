@@ -1,0 +1,2 @@
+account_number,security_id,trade_type,quantity,price,trade_date
+ACC123,SEC456,BUY,100,10.5,2025-10-31
