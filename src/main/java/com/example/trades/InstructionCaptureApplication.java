@@ -4,8 +4,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class TradesCaptureServiceApplication {
+public class InstructionCaptureApplication {
     public static void main(String[] args) {
-        SpringApplication.run(TradesCaptureServiceApplication.class, args);
+        SpringApplication.run(InstructionCaptureApplication.class, args);
     }
 }

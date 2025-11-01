@@ -1,16 +1,19 @@
-package com.example.trades.web;
+package com.example.trades.controller;
 
-import com.example.trades.model.CanonicalInstruction;
+import com.example.trades.model.CanonicalTrade;
 import com.example.trades.model.InstructionRaw;
-import com.example.trades.service.InstructionTransformer;
+import com.example.trades.util.TradeTransformer;
 import com.example.trades.store.InMemoryStore;
-import com.example.trades.kafka.OutboundPublisher;
+import com.example.trades.service.KafkaPublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
@@ -26,11 +29,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/upload")
 @RequiredArgsConstructor
-public class UploadController {
+public class TradeController {
+    private static final Logger log = LoggerFactory.getLogger(TradeController.class);
 
-    private final InstructionTransformer transformer;
+    private final TradeTransformer transformer;
     private final InMemoryStore store;
-    private final OutboundPublisher publisher;
+    private final KafkaPublisher publisher;
     private final ObjectMapper mapper = new ObjectMapper();
 
     @PostMapping(path = "/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -40,7 +44,7 @@ public class UploadController {
         String ext = StringUtils.getFilenameExtension(filename);
         if (ext == null) return ResponseEntity.badRequest().body("Unknown file type");
 
-        List<CanonicalInstruction> processed = new ArrayList<>();
+        List<CanonicalTrade> processed = new ArrayList<>();
 
         if (ext.equalsIgnoreCase("csv")) {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8));
@@ -57,7 +61,7 @@ public class UploadController {
                             rec.get("price"),
                             rec.get("trade_date")
                     );
-                    CanonicalInstruction ci = transformer.toCanonical(raw);
+                    CanonicalTrade ci = transformer.toCanonical(raw);
                     store.put(ci);
                     processed.add(ci);
                     publisher.publish(transformer.toPlatform(ci));
@@ -66,7 +70,7 @@ public class UploadController {
         } else if (ext.equalsIgnoreCase("json")) {
             List<InstructionRaw> raws = mapper.readValue(file.getInputStream(), new TypeReference<>() {});
             for (InstructionRaw raw : raws) {
-                CanonicalInstruction ci = transformer.toCanonical(raw);
+                CanonicalTrade ci = transformer.toCanonical(raw);
                 store.put(ci);
                 processed.add(ci);
                 publisher.publish(transformer.toPlatform(ci));
@@ -82,11 +86,22 @@ public class UploadController {
     public ResponseEntity<?> uploadJson(@RequestBody List<InstructionRaw> raws) {
         List<String> ids = new ArrayList<>();
         for (InstructionRaw raw : raws) {
-            CanonicalInstruction ci = transformer.toCanonical(raw);
+            CanonicalTrade ci = transformer.toCanonical(raw);
             store.put(ci);
             publisher.publish(transformer.toPlatform(ci));
             ids.add(ci.getId());
         }
         return ResponseEntity.accepted().body(ids);
+    }
+
+    @PostMapping("/publish-inbound")
+    public ResponseEntity<Void> publishInbound(@RequestBody InstructionRaw instruction) {
+        try {
+            publisher.publish(instruction);
+            return ResponseEntity.status(HttpStatus.ACCEPTED).build();
+        } catch (Exception e) {
+            log.error("Failed to publish inbound instruction: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }

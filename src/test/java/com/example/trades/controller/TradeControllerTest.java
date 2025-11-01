@@ -1,11 +1,14 @@
 // java
-package com.example.trades.web;
+package com.example.trades.controller;
 
+import com.example.trades.config.SecurityConfig;
 import com.example.trades.model.InstructionRaw;
-import com.example.trades.model.CanonicalInstruction;
-import com.example.trades.service.InstructionTransformer;
+import com.example.trades.model.CanonicalTrade;
+import com.example.trades.model.PlatformTrade;
+import com.example.trades.util.TradeTransformer;
 import com.example.trades.store.InMemoryStore;
-import com.example.trades.kafka.OutboundPublisher;
+import com.example.trades.service.KafkaPublisher;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,27 +29,30 @@ import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(UploadController.class)
-@Import(UploadControllerTest.MockConfig.class)
-class UploadControllerTest {
+@WebMvcTest(TradeController.class)
+@Import({TradeControllerTest.MockConfig.class, SecurityConfig.class})
+class TradeControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @Autowired
-    private InstructionTransformer transformer;
+    private TradeTransformer transformer;
 
     @Autowired
     private InMemoryStore store;
 
     @Autowired
-    private OutboundPublisher publisher;
+    private KafkaPublisher publisher;
+
+    @Autowired
+    private ObjectMapper objectMapper; // use Spring-managed ObjectMapper
 
     @TestConfiguration
     static class MockConfig {
         @Bean
-        public InstructionTransformer transformer() {
-            return Mockito.mock(InstructionTransformer.class);
+        public TradeTransformer transformer() {
+            return Mockito.mock(TradeTransformer.class);
         }
 
         @Bean
@@ -55,8 +61,8 @@ class UploadControllerTest {
         }
 
         @Bean
-        public OutboundPublisher publisher() {
-            return Mockito.mock(OutboundPublisher.class);
+        public KafkaPublisher publisher() {
+            return Mockito.mock(KafkaPublisher.class);
         }
     }
 
@@ -72,13 +78,11 @@ class UploadControllerTest {
                 csv.getBytes(StandardCharsets.UTF_8)
         );
 
-        CanonicalInstruction mockCi = Mockito.mock(CanonicalInstruction.class);
+        CanonicalTrade mockCi = Mockito.mock(CanonicalTrade.class);
         Mockito.when(transformer.toCanonical(any(InstructionRaw.class))).thenReturn(mockCi);
 
-        // Use doReturn(...) for stubbing when thenReturn is not resolvable
-        doReturn(new Object()).when(transformer).toPlatform(any(CanonicalInstruction.class));
-        // If toPlatform is void, replace the line above with:
-        // Mockito.doNothing().when(transformer).toPlatform(any(CanonicalInstruction.class));
+        PlatformTrade mockPlatform = Mockito.mock(PlatformTrade.class);
+        doReturn(mockPlatform).when(transformer).toPlatform(any(CanonicalTrade.class));
 
         mockMvc.perform(multipart("/api/v1/upload/file")
                         .file(file)
@@ -87,13 +91,13 @@ class UploadControllerTest {
 
         verify(transformer, times(1)).toCanonical(any(InstructionRaw.class));
         verify(store, times(1)).put(mockCi);
-        verify(publisher, times(1)).publish(any());
+        verify(publisher, times(1)).publish(any(PlatformTrade.class));
     }
 
     @Test
     void uploadJsonFile_shouldReturnOk_andInvokeStoreAndPublisher() throws Exception {
         String jsonArray = "[" +
-                "{\"account_number\":\"ACC123\",\"security_id\":\"SEC456\",\"trade_type\":\"BUY\",\"quantity\":\"100\",\"price\":\"10.5\",\"trade_date\":\"2025-10-31\"}" +
+                "{\"accountNumber\":\"ACC123\",\"securityId\":\"SEC456\",\"tradeType\":\"BUY\",\"quantity\":\"100\",\"price\":\"10.5\",\"tradeDate\":\"2025-10-31\"}" +
                 "]";
 
         MockMultipartFile file = new MockMultipartFile(
@@ -103,20 +107,39 @@ class UploadControllerTest {
                 jsonArray.getBytes(StandardCharsets.UTF_8)
         );
 
-        CanonicalInstruction mockCi = Mockito.mock(CanonicalInstruction.class);
+        CanonicalTrade mockCi = Mockito.mock(CanonicalTrade.class);
         Mockito.when(transformer.toCanonical(any(InstructionRaw.class))).thenReturn(mockCi);
 
-        doReturn(new Object()).when(transformer).toPlatform(any(CanonicalInstruction.class));
-        // Or use Mockito.doNothing() if the method is void:
-        // Mockito.doNothing().when(transformer).toPlatform(any(CanonicalInstruction.class));
+        PlatformTrade mockPlatform = Mockito.mock(PlatformTrade.class);
+        doReturn(mockPlatform).when(transformer).toPlatform(any(CanonicalTrade.class));
 
         mockMvc.perform(multipart("/api/v1/upload/file")
                         .file(file)
                         .contentType(MediaType.MULTIPART_FORM_DATA))
                 .andExpect(status().isOk());
 
-        verify(transformer, times(1)).toCanonical(any(InstructionRaw.class));
+        verify(transformer, times(2)).toCanonical(any(InstructionRaw.class));
         verify(store, times(1)).put(mockCi);
-        verify(publisher, times(1)).publish(any());
+        verify(publisher, times(2)).publish(any(PlatformTrade.class));
+    }
+
+    @Test
+    void publishInbound_shouldReturnAccepted_andInvokePublisher() throws Exception {
+        // Build JSON payload manually to avoid Jackson classpath/access issues in the test runtime
+        String payload = "{" +
+                "\"accountNumber\":\"ACC123\"," +
+                "\"securityId\":\"SEC456\"," +
+                "\"tradeType\":\"BUY\"," +
+                "\"quantity\":\"100\"," +
+                "\"price\":\"10.5\"," +
+                "\"tradeDate\":\"2025-10-31\"" +
+                "}";
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/upload/publish-inbound")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isAccepted());
+
+        verify(publisher, times(1)).publish(any(InstructionRaw.class));
     }
 }

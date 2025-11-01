@@ -1,15 +1,15 @@
 package com.example.trades;
 
-import com.example.trades.model.CanonicalInstruction;
+import com.example.trades.model.CanonicalTrade;
 import com.example.trades.model.InstructionRaw;
-import com.example.trades.service.InstructionTransformer;
+import com.example.trades.util.TradeTransformer;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class InstructionTransformerTest {
     @Test
     void testCanonicalTransform() {
-        InstructionTransformer t = new InstructionTransformer();
+        TradeTransformer t = new TradeTransformer();
         InstructionRaw raw = InstructionRaw.builder()
                 .accountNumber("123456789")
                 .securityId("aapl")
@@ -18,7 +18,7 @@ public class InstructionTransformerTest {
                 .price("180.50")
                 .tradeDate("2025-10-01")
                 .build();
-        CanonicalInstruction ci = t.toCanonical(raw);
+        CanonicalTrade ci = t.toCanonical(raw);
         assertEquals("****6789", ci.getMaskedAccountNumber());
         assertEquals("AAPL", ci.getSecurityId());
         assertEquals("B", ci.getTradeTypeCode());

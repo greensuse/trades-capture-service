@@ -2,7 +2,11 @@ package com.example.trades.model;
 
 import lombok.*;
 
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class InstructionRaw {
     private String accountNumber;
     private String securityId;

@@ -3,7 +3,7 @@ package com.example.trades.model;
 import lombok.*;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class CanonicalInstruction {
+public class CanonicalTrade {
     private String maskedAccountNumber;
     private String securityId;
     private String tradeTypeCode;
