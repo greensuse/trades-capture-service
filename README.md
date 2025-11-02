@@ -16,7 +16,7 @@ Configure Kafka in `application.yml` (localhost:9092 by default).
 ## Endpoints
 - `POST /api/v1/upload/file` (multipart) CSV/JSON
 
- same file located at '\src\test\resources\test.csv'
+Sample file located at '\src\test\resources\test.csv'
 
 - `POST /api/v1/upload/json` (list of objects)
 
